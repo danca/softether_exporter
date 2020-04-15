@@ -1,4 +1,5 @@
-use crate::softether_reader::SoftEtherReader;
+use crate::softether_hub_status_reader::SoftEtherHubStatusReader;
+use crate::softether_hub_session_reader::SoftEtherHubSessionReader;
 use anyhow::Error;
 use hyper::header::ContentType;
 use hyper::mime::{Mime, SubLevel, TopLevel};
@@ -8,7 +9,6 @@ use lazy_static::lazy_static;
 use prometheus;
 use prometheus::{register_gauge_vec, Encoder, GaugeVec, TextEncoder};
 use serde_derive::Deserialize;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -111,6 +111,18 @@ lazy_static! {
         &["hub", "user"]
     )
     .unwrap();
+    static ref USER_OUTGOING_BYTES: GaugeVec = register_gauge_vec!(
+        "softether_user_outgoing_bytes",
+        "User overall outgoing traffic in bytes.",
+        &["hub", "user"]
+    )
+    .unwrap();
+    static ref USER_INCOMING_BYTES: GaugeVec = register_gauge_vec!(
+        "softether_user_incoming_bytes",
+        "User overall incoming traffic in bytes.",
+        &["hub", "user"]
+    )
+    .unwrap();
     static ref USER_TRANSFER_PACKETS: GaugeVec = register_gauge_vec!(
         "softether_user_transfer_packets",
         "User transfer in packets.",
@@ -177,7 +189,7 @@ impl Exporter {
                     let name = hub.name.unwrap_or(String::from(""));
                     let password = hub.password.unwrap_or(String::from(""));
                     let status =
-                        match SoftEtherReader::hub_status(&vpncmd, &server, &name, &password) {
+                        match SoftEtherHubStatusReader::hub_status(&vpncmd, &server, &name, &password) {
                             Ok(x) => x,
                             Err(x) => {
                                 UP.with_label_values(&[&name]).set(0.0);
@@ -187,7 +199,7 @@ impl Exporter {
                         };
 
                     let sessions =
-                        match SoftEtherReader::hub_sessions(&vpncmd, &server, &name, &password) {
+                        match SoftEtherHubSessionReader::hub_sessions(&vpncmd, &server, &name, &password) {
                             Ok(x) => x,
                             Err(x) => {
                                 UP.with_label_values(&[&name]).set(0.0);
@@ -243,33 +255,19 @@ impl Exporter {
                         .with_label_values(&[&status.name])
                         .set(status.incoming_broadcast_bytes);
 
-                    let mut transfer_bytes = HashMap::new();
-                    let mut transfer_packets = HashMap::new();
                     for session in sessions {
-                        if let Some(val) = transfer_bytes.get(&session.user) {
-                            let val = val + session.transfer_bytes;
-                            transfer_bytes.insert(session.user.clone(), val);
-                        } else {
-                            let val = session.transfer_bytes;
-                            transfer_bytes.insert(session.user.clone(), val);
-                        }
-                        if let Some(val) = transfer_packets.get(&session.user) {
-                            let val = val + session.transfer_packets;
-                            transfer_packets.insert(session.user.clone(), val);
-                        } else {
-                            let val = session.transfer_packets;
-                            transfer_packets.insert(session.user.clone(), val);
-                        }
-                    }
-                    for (user, bytes) in &transfer_bytes {
                         USER_TRANSFER_BYTES
-                            .with_label_values(&[&status.name, user])
-                            .set(*bytes);
-                    }
-                    for (user, packets) in &transfer_packets {
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.transfer_bytes);
+                        USER_OUTGOING_BYTES
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.outgoing_data_size);
+                        USER_INCOMING_BYTES
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.incoming_data_size);
                         USER_TRANSFER_PACKETS
-                            .with_label_values(&[&status.name, user])
-                            .set(*packets);
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.transfer_packets);
                     }
                 }
 

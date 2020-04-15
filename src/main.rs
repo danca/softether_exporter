@@ -1,5 +1,7 @@
 mod exporter;
 mod softether_reader;
+mod softether_hub_status_reader;
+mod softether_hub_session_reader;
 
 use crate::exporter::{Config, Exporter};
 use anyhow::Error;
