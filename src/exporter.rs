@@ -123,6 +123,30 @@ lazy_static! {
         &["hub", "user"]
     )
     .unwrap();
+    static ref USER_OUTGOING_UNICAST_BYTES: GaugeVec = register_gauge_vec!(
+        "softether_user_outgoing_unicast_bytes",
+        "User overall outgoing unicast traffic in bytes.",
+        &["hub", "user"]
+    )
+    .unwrap();
+    static ref USER_INCOMING_UNICAST_BYTES: GaugeVec = register_gauge_vec!(
+        "softether_user_incoming_unicast_bytes",
+        "User overall incoming unicast traffic in bytes.",
+        &["hub", "user"]
+    )
+    .unwrap();
+    static ref USER_OUTGOING_BROADCAST_BYTES: GaugeVec = register_gauge_vec!(
+        "softether_user_outgoing_broadcast_bytes",
+        "User overall outgoing broadcast traffic in bytes.",
+        &["hub", "user"]
+    )
+    .unwrap();
+    static ref USER_INCOMING_BROADCAST_BYTES: GaugeVec = register_gauge_vec!(
+        "softether_user_incoming_broadcast_bytes",
+        "User overall incoming broadcast traffic in bytes.",
+        &["hub", "user"]
+    )
+    .unwrap();
     static ref USER_TRANSFER_PACKETS: GaugeVec = register_gauge_vec!(
         "softether_user_transfer_packets",
         "User transfer in packets.",
@@ -265,6 +289,18 @@ impl Exporter {
                         USER_INCOMING_BYTES
                             .with_label_values(&[&status.name, &session.user])
                             .set(session.incoming_data_size);
+                        USER_OUTGOING_UNICAST_BYTES
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.outgoing_unicast_bytes);
+                        USER_INCOMING_UNICAST_BYTES
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.incoming_unicast_bytes);
+                        USER_OUTGOING_BROADCAST_BYTES
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.outgoing_broadcast_bytes);
+                        USER_INCOMING_BROADCAST_BYTES
+                            .with_label_values(&[&status.name, &session.user])
+                            .set(session.incoming_broadcast_bytes);
                         USER_TRANSFER_PACKETS
                             .with_label_values(&[&status.name, &session.user])
                             .set(session.transfer_packets);
